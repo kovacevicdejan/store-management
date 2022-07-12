@@ -1,0 +1,5 @@
+__pycache__
+authentication/__pycache__
+store/__pycache__
+tests/__pycache__
+tests/temp.csv
