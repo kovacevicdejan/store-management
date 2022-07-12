@@ -1,0 +1,142 @@
+version: '3'
+
+services:
+  adminer:
+    image: adminer
+    ports:
+      - "8080:8080"
+    networks:
+      authentication:
+      warehouse:
+      daemon:
+      customer:
+      admin:
+  redis:
+    image: redis
+    networks:
+      warehouse:
+      daemon:
+  authenticationDB:
+    image: mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 10s
+      retries: 10
+    volumes:
+      - authentication_db_data:/var/lib/mysql
+    networks:
+      authentication:
+  authenticationDBMigration:
+    image: authenticationdbmigration
+    environment:
+      - DATABASE_URL=authenticationDB
+    depends_on:
+      authenticationDB:
+        condition: service_healthy
+    networks:
+      authentication:
+    build:
+      context: .
+      dockerfile: authenticationDBMigration.dockerfile
+  authentication:
+    image: authentication
+    environment:
+      - DATABASE_URL=authenticationDB
+    depends_on:
+      - authenticationDBMigration
+    ports:
+      - "5000:5000"
+    networks:
+      authentication:
+    build:
+      context: .
+      dockerfile: authentication.dockerfile
+  storeDB:
+    image: mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      timeout: 10s
+      retries: 10
+    volumes:
+      - store_db_data:/var/lib/mysql
+    networks:
+      daemon:
+      customer:
+      admin:
+  storeDBMigration:
+    image: storedbmigration
+    environment:
+      - DATABASE_URL=storeDB
+    depends_on:
+      storeDB:
+        condition: service_healthy
+    networks:
+      daemon:
+      customer:
+      admin:
+    build:
+      context: .
+      dockerfile: storeDBMigration.dockerfile
+  warehouse:
+    image: warehouse
+    environment:
+      - DATABASE_URL=storeDB
+    ports:
+      - "5001:5001"
+    networks:
+      warehouse:
+    build:
+      context: .
+      dockerfile: warehouse.dockerfile
+  daemon:
+    image: daemon
+    environment:
+      - DATABASE_URL=storeDB
+    depends_on:
+      - storeDBMigration
+    networks:
+      daemon:
+    build:
+      context: .
+      dockerfile: daemon.dockerfile
+  customer:
+    image: customer
+    environment:
+      - DATABASE_URL=storeDB
+    depends_on:
+      - storeDBMigration
+    ports:
+      - "5002:5002"
+    networks:
+      customer:
+    build:
+      context: .
+      dockerfile: customer.dockerfile
+  admin:
+    image: admin
+    environment:
+      - DATABASE_URL=storeDB
+    depends_on:
+      - storeDBMigration
+    ports:
+      - "5003:5003"
+    networks:
+      admin:
+    build:
+      context: .
+      dockerfile: admin.dockerfile
+
+volumes:
+  authentication_db_data:
+  store_db_data:
+
+networks:
+  authentication:
+  warehouse:
+  daemon:
+  customer:
+  admin:

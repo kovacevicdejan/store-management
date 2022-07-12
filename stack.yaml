@@ -1,0 +1,106 @@
+version: '3'
+
+services:
+  redis:
+    image: redis
+    networks:
+      warehouse:
+      daemon:
+  authenticationDB:
+    image: mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 10s
+      retries: 10
+    volumes:
+      - authentication_db_data:/var/lib/mysql
+    networks:
+      authentication:
+  authenticationDBMigration:
+    image: authenticationdbmigration
+    environment:
+      - DATABASE_URL=authenticationDB
+    networks:
+      authentication:
+  authentication:
+    image: authentication
+    environment:
+      - DATABASE_URL=authenticationDB
+    ports:
+      - "5000:5000"
+    networks:
+      authentication:
+  storeDB:
+    image: mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      timeout: 10s
+      retries: 10
+    volumes:
+      - store_db_data:/var/lib/mysql
+    networks:
+      daemon:
+      customer:
+      admin:
+  storeDBMigration:
+    image: storedbmigration
+    environment:
+      - DATABASE_URL=storeDB
+    networks:
+      daemon:
+      customer:
+      admin:
+  warehouse:
+    image: warehouse
+    environment:
+      - DATABASE_URL=storeDB
+    ports:
+      - "5001:5001"
+    networks:
+      warehouse:
+    deploy:
+      replicas: 3
+  daemon:
+    image: daemon
+    environment:
+      - DATABASE_URL=storeDB
+    networks:
+      daemon:
+  customer:
+    image: customer
+    environment:
+      - DATABASE_URL=storeDB
+    ports:
+      - "5002:5002"
+    networks:
+      customer:
+    deploy:
+      replicas: 3
+  admin:
+    image: admin
+    environment:
+      - DATABASE_URL=storeDB
+    ports:
+      - "5003:5003"
+    networks:
+      admin:
+
+volumes:
+  authentication_db_data:
+  store_db_data:
+
+networks:
+  authentication:
+    driver: overlay
+  warehouse:
+    driver: overlay
+  daemon:
+    driver: overlay
+  customer:
+    driver: overlay
+  admin:
+    driver: overlay
